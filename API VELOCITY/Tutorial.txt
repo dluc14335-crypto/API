@@ -1,0 +1,315 @@
+Quorum API Usage Guide
+
+This guide explains how to use the Quorum API within your Visual Studio project to interact with Roblox.
+
+Prerequisites:
+
+* A Visual Studio project set up.
+* The Quorum API library (.dll file).
+
+Steps:
+
+1. Prepare the Project and Files:
+    * Switch to x64 Build: In Visual Studio, go to "Build" -> "Configuration Manager". Under "Active solution platform", select "x64" from the dropdown. If it's not available, click "New..." and choose "x64".
+    * Extract Files: From the Quorum API archive, extract the `QuorumAPI.dll` file and the `bin` folder.
+    * Place Files: Move both the `QuorumAPI.dll` file and the entire `bin` folder into the output directory of your project. This is typically located in `[Your Project Folder]\bin\x64\Debug` or `[Your Project Folder]\bin\x64\Release`, depending on your build configuration.
+
+2. Add Reference:
+    * In your Visual Studio project, right-click on "References" in the Solution Explorer.
+    * Select "Add Reference".
+    * Browse to the location of the Quorum API library .dll file.
+    * Select the library and click "Add".
+
+3. Include Namespace:
+    * In your C# code files, add the following line at the top:
+        using QuorumAPI;
+
+4. In your WinForms form class (usually Form1.cs), make sure to initialize the QuorumModule like this:
+
+        private QuorumModule quorum;
+        public Form1()
+        {
+            InitializeComponent();
+            quorum = new QuorumModule();
+            quorum.StartCommunication();
+        }
+
+5. Add a Manifest File:
+
+    * Right-click your project > Add > New Item > Application Manifest File.
+    * In the added file (app.manifest), find the <requestedExecutionLevel> line.
+    * Replace it with:
+      <requestedExecutionLevel level="requireAdministrator" uiAccess="false" />
+
+6. API Functions:
+
+    * AutoUpdate Console:
+        QuorumAPI.QuorumModule._AutoUpdateLogs = false/true;
+
+        Enables or disables console logs with auto-update progress.
+
+    * Start Communication:
+        quorum.StartCommunication();
+
+        Initializes internal API communication. Call this before anything else.
+
+    * Stop Communication:
+        quorum.StopCommunication();
+
+        Cleans up internal API state. Optional, but recommended on shutdown.
+
+    * Attach by PID:
+        await quorum.Attach(pid);
+
+        // Or if you want to attach without cmd:
+        await quorum.Attach(pid, true);
+
+        Attaches to a specific Roblox process by its Process ID.
+        Optional argument 'nocmd' hides the injector console.
+
+    * Execute by PID:
+        quorum.Execute(pid, "script here");
+
+        Executes a script in the specific Roblox process.
+
+    * Execute Script (All Clients):
+        quorum.ExecuteScript(script);
+
+        Executes a script in all Roblox processes.
+
+    * AttachAPI (All Clients):
+        await quorum.AttachAPI();
+
+        // Or if you want to attach without cmd:
+        await quorum.Attach(pid, true);
+
+        Attaches to all Roblox proccesses.
+        Optional argument 'nocmd' hides the injector console.
+
+    * Kill Roblox:
+        QuorumAPI.QuorumModule.KillRoblox();
+
+        Closes the Roblox process.
+
+    * Auto Attach:
+        quorum.SetAutoAttach(true/false);
+
+        Enables/disables auto attach.
+
+    * Attach API (with result):
+        var result = await quorum.AttachAPI();
+
+        Returns an enum indicating the result. See Quorum States below.
+
+    * Is PID Attached:
+        bool isAttached = QuorumAPI.QuorumAPI.IsPIDAttached(pid);
+
+        Checks if attached to a specific process.
+
+    * Is Any Process Attached:
+        bool isAttached = quorum.IsAttached();
+
+        Checks if attached to any Roblox process.
+
+    * Set Attach Notification:
+        QuorumAPI.QuorumModule.SetAttachNotify("Title", "Text");
+
+        Sets a custom attach notification.
+
+    ------ Output Usage ------
+    
+     * UseOutput
+    	QuorumAPI.QuorumModule.UseOutput(true); // Enable the output
+
+    	This initializes the Logger and enables all logging functionality.
+    	Until this is called, Logger.Enabled = false and no logs will be processed.
+    	Safe to call multiple times; watcher will start only once.
+
+    * Initializing Output
+        QuorumAPI.QuorumModule.Logger.OnLog += Logger_OnLog;
+    
+        Adding an event to handle every log by the output. This will trigger
+        whenever Quorum logs a message (system or Roblox).
+    
+    * SetTheme
+        QuorumAPI.QuorumModule.Logger.SetTheme(new COP.LogTheme
+        {
+            Info = Color.White,
+            Success = Color.LimeGreen,
+            Warning = Color.Orange,
+            Error = Color.Red,
+            System = Color.Gray
+        });
+    
+        Changing colors of the output. For example:
+        - Red for errors
+        - Orange for warnings
+        - Green for success messages
+        - White for info
+        - Gray for system logs
+    
+    * SetFormat
+        QuorumAPI.QuorumModule.Logger.SetFormat(new COP.LogFormat
+        {
+            InfoTag = "[INFO]",
+            SuccessTag = "[SUCCESS]",
+            WarningTag = "[WARNING]",
+            ErrorTag = "[ERROR]",
+            SystemTag = "[SYSTEM]"
+        });
+    
+        Customizing tags that appear before each message. Example:
+        [SUCCESS] Script executed successfully!
+    
+    * SetLogSource
+        QuorumAPI.QuorumModule.Logger.SetLogSource(COP.LogSource.All); // Options: All / System / Roblox
+    
+        Choosing which logs to capture:
+        - All: both system and Roblox logs
+        - System: only internal API/system messages
+        - Roblox: only messages from the Roblox client
+    
+    * StartRobloxLogWatcher
+        QuorumAPI.QuorumModule.Logger.StartRobloxLogWatcher(1000); // interval in milliseconds
+    
+        Starts monitoring the Roblox log file in real-time.
+        Any new lines written to the Roblox log will automatically appear
+        in the output through Logger_OnLog.
+    
+    * Logger_OnLog
+        private void Logger_OnLog(string message, Color color)
+        {
+            if (LogsTextBox.InvokeRequired)
+                LogsTextBox.Invoke(new Action(() => AppendLog(message, color)));
+            else
+                AppendLog(message, color);
+        }
+    
+        Handles every log sent by Quorum. Safe to update UI components
+        from any thread. Can be modified to write to other outputs
+        (like WebView2, Monaco, or console).
+    
+    * AppendLog
+        private void AppendLog(string message, Color color)
+        {
+            LogsTextBox.SelectionStart = LogsTextBox.TextLength;
+            LogsTextBox.SelectionLength = 0;
+            LogsTextBox.SelectionColor = color;
+            LogsTextBox.AppendText(message + Environment.NewLine);
+            LogsTextBox.SelectionColor = LogsTextBox.ForeColor;
+        }
+    
+        Adds the log message to a RichTextBox with the appropriate color.
+        Can be replaced with your own implementation for WebView2, Monaco,
+        console, or any other output.
+
+6. Quorum States:
+
+    These are possible values returned from `await quorum.AttachAPI()`:
+
+        Attaching
+        Attached
+        NotAttached
+        NoProcessFound
+        TamperDetected
+        Error
+
+7. Basic Usage Example:
+
+        using QuorumAPI;
+
+        public partial class Form1 : Form
+        {
+            private QuorumModule quorum; // Adding Quorum Module
+
+            public Form1()
+            {
+                InitializeComponent();
+                QuorumAPI.QuorumModule._AutoUpdateLogs = true;
+                quorum = new QuorumModule();
+                quorum.StartCommunication(); // Starting communication. Very Important!!
+
+                // ------ Output Initialize ------
+                QuorumAPI.QuorumModule.UseOutput(true);
+                QuorumAPI.QuorumModule.Logger.OnLog += Logger_OnLog;
+
+                QuorumAPI.QuorumModule.Logger.SetTheme(new COP.LogTheme
+                {
+                    Info = Color.White,
+                    Success = Color.LimeGreen,
+                    Warning = Color.Orange,
+                    Error = Color.Red,
+                    System = Color.Gray
+                });
+
+                QuorumAPI.QuorumModule.Logger.SetFormat(new COP.LogFormat
+                {
+                    InfoTag = "[INFO]",
+                    SuccessTag = "[SUCCESS]",
+                    WarningTag = "[WARNING]",
+                    ErrorTag = "[ERROR]",
+                    SystemTag = "[SYSTEM]"
+                });
+
+                QuorumAPI.QuorumModule.Logger.SetLogSource(COP.LogSource.All);
+                // ------ Output Initialize End ------
+            }
+
+            // ------ Output Helpers ------
+            private void Logger_OnLog(string message, Color color)
+            {
+                if (LogsTextBox.InvokeRequired)
+                    LogsTextBox.Invoke(new Action(() => AppendLog(message, color)));
+                else
+                    AppendLog(message, color);
+            }
+
+            private void AppendLog(string message, Color color)
+            {
+                LogsTextBox.SelectionStart = LogsTextBox.TextLength;
+                LogsTextBox.SelectionLength = 0;
+                LogsTextBox.SelectionColor = color;
+                LogsTextBox.AppendText(message + Environment.NewLine);
+                LogsTextBox.SelectionColor = LogsTextBox.ForeColor;
+            }
+            // ------ Output End ------
+
+
+            private async void InjectButton_Click(object sender, EventArgs e)
+            {
+                await quorum.AttachAPI();
+            }
+
+            private void ExecuteButton_Click(object sender, EventArgs e)
+            {
+                string script = richTextBox1.Text;
+                var result = quorum.ExecuteScript(script);
+                MessageBox.Show("Execute result: " + result.ToString());
+            }
+
+            private void KillButton_Click(object sender, EventArgs e)
+            {
+                QuorumAPI.QuorumModule.KillRoblox();
+            }
+
+            private void AutoAttachCheck_CheckedChanged(object sender, EventArgs e)
+            {
+                quorum.SetAutoAttach(AutoAttachCheck.Checked);
+            }
+
+            private void CheckStateButton_Click(object sender, EventArgs e)
+            {
+                bool isAttached = quorum.IsAttached();
+                MessageBox.Show(isAttached ? "Attached" : "Not attached");
+            }
+
+            private void SetAttachNotifyButton_Click(object sender, EventArgs e)
+            {
+                QuorumAPI.QuorumModule.SetAttachNotify("Quorum Executor", "Successfully Attached!");
+            }
+
+            private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+            {
+                quorum.StopCommunication();
+            }
+        }
